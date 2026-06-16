@@ -49,7 +49,8 @@ else (sign-in, personalized feed) is additive.
 
 - **Backend:** Node.js + Express (`server/index.js`)
 - **AI:** Vercel AI SDK — `ai` v6, `@ai-sdk/google` v3 (Gemini 2.5 Flash, **default**),
-  `@ai-sdk/anthropic` v3 (Claude Haiku, fallback), `zod`
+  `@ai-sdk/anthropic` v3 (Claude Haiku, opt-in), `@openrouter/ai-sdk-provider` v2
+  (`google/gemma-4-26b-a4b-it:free` — automatic fallback when the primary errors), `zod`
 - **Frontend:** vanilla HTML/CSS/JS, mobile-first, PWA (`manifest.json` + `sw.js`)
 - **Player:** YouTube IFrame Player API
 - **YouTube data:** YouTube Data API v3 (search, subscriptions, activities)
@@ -85,8 +86,11 @@ Note: there is intentionally **no** `openclaw-client.js` — an earlier OpenClaw
 integration was removed in favor of the Vercel AI SDK. Don't reintroduce it.
 
 ### Key backend pieces (`server/index.js`)
-- `resolveModel(preferredModel)` — returns Gemini by default, Claude Haiku if the
-  parent picked "claude" and `ANTHROPIC_API_KEY` is set, else whichever key exists.
+- `resolveModelChain(preferredModel)` — returns an ordered list of model candidates:
+  the parent's preferred model (Gemini default; Claude if picked and `ANTHROPIC_API_KEY` is set),
+  then the OpenRouter free Gemma model (`GEMMA_API_KEY`) as an automatic fallback. `/api/chat`
+  iterates the chain so the gate survives a primary-provider outage (e.g. Gemini 503s); if every
+  model fails, it returns a static safe question so the gate never breaks.
 - `GEMINI_SAFETY_SETTINGS` — all four harm categories at `BLOCK_LOW_AND_ABOVE`,
   passed via `providerOptions.google.safetySettings`.
 - `buildSystemPrompt(...)` — age/style/learner-context-aware prompt. On the final
@@ -123,6 +127,7 @@ overwrite it). Variables:
 | `PARENT_PIN` | Recommended | Gates the settings panel. **Defaults to `1234`** if unset. |
 | `SESSION_SECRET` | Recommended | Signs sessions |
 | `ANTHROPIC_API_KEY` | Optional | Enables Claude Haiku as a selectable model |
+| `GEMMA_API_KEY` | Optional | OpenRouter key (`sk-or-v1-…`) for the free Gemma fallback model — used automatically when the primary model errors. Note: the `:free` model is rate-limited upstream; add a Google AI Studio key at openrouter.ai/settings/integrations for higher limits. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional | OAuth sign-in. Redirect URI must be **exactly** `http://localhost:3000/auth/google/callback`. OAuth app is in "Testing" mode → only accounts added as **Test users** can sign in. |
 | `LEARNER_PROFILE_ID` | Optional | Profile name when not signed in (default `default`) |
 | `PORT` | Optional | Default `3000`. If changed, the OAuth redirect URI must change to match. |

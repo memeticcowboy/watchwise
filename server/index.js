@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const { generateText, tool, stepCountIs } = require('ai');
 const { createGoogleGenerativeAI } = require('@ai-sdk/google');
 const { createAnthropic } = require('@ai-sdk/anthropic');
+const { createOpenRouter } = require('@openrouter/ai-sdk-provider');
 const { z } = require('zod');
 const learnerProfile = require('./learner-profile');
 
@@ -37,6 +38,15 @@ const anthropicProvider = process.env.ANTHROPIC_API_KEY
   ? createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   : null;
 
+// OpenRouter — used for the free Gemma fallback model when the primary provider errors.
+const openrouterProvider = process.env.GEMMA_API_KEY
+  ? createOpenRouter({ apiKey: process.env.GEMMA_API_KEY })
+  : null;
+
+// Free fallback model on OpenRouter — keeps the reflection gate working when the
+// primary model is unavailable (e.g. Gemini 503s under load).
+const OPENROUTER_FALLBACK_MODEL = 'google/gemma-4-26b-a4b-it:free';
+
 // Gemini safety settings — cranked to the strictest setting for kid-safe conversations.
 const GEMINI_SAFETY_SETTINGS = [
   { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_LOW_AND_ABOVE' },
@@ -45,25 +55,32 @@ const GEMINI_SAFETY_SETTINGS = [
   { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_LOW_AND_ABOVE' },
 ];
 
-// Pick the model for a request based on the parent's preference and available keys.
-// Returns { model, providerOptions, label } or null if nothing is configured.
-function resolveModel(preferredModel) {
+// Build the ordered list of model candidates to try for a request, based on the
+// parent's preference and available keys. The OpenRouter free model is appended
+// as a fallback so the reflection gate keeps working when the primary errors.
+// Returns an array of { model, providerOptions, label } (empty if none configured).
+function resolveModelChain(preferredModel) {
+  const chain = [];
   const wantsClaude = preferredModel === 'claude';
 
   if (wantsClaude && anthropicProvider) {
-    return { model: anthropicProvider('claude-haiku-4-5'), providerOptions: {}, label: 'claude' };
-  }
-  if (googleProvider) {
-    return {
+    chain.push({ model: anthropicProvider('claude-haiku-4-5'), providerOptions: {}, label: 'claude' });
+  } else if (googleProvider) {
+    chain.push({
       model: googleProvider('gemini-2.5-flash'),
       providerOptions: { google: { safetySettings: GEMINI_SAFETY_SETTINGS } },
       label: 'gemini',
-    };
+    });
+  } else if (anthropicProvider) {
+    chain.push({ model: anthropicProvider('claude-haiku-4-5'), providerOptions: {}, label: 'claude' });
   }
-  if (anthropicProvider) {
-    return { model: anthropicProvider('claude-haiku-4-5'), providerOptions: {}, label: 'claude' };
+
+  // Append the OpenRouter free model as a last-resort fallback.
+  if (openrouterProvider) {
+    chain.push({ model: openrouterProvider(OPENROUTER_FALLBACK_MODEL), providerOptions: {}, label: 'openrouter-gemma' });
   }
-  return null;
+
+  return chain;
 }
 
 // Default learner profile ID (single-kid mode for now)
@@ -550,8 +567,8 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 
-  const selected = resolveModel(settings.model);
-  if (!selected) {
+  const chain = resolveModelChain(settings.model);
+  if (chain.length === 0) {
     return res.json({
       message: isFinal
         ? 'Great job thinking about what you watched!'
@@ -559,57 +576,68 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 
-  try {
-    const { text } = await generateText({
-      model: selected.model,
-      system: systemPrompt,
-      messages,
-      tools: buildTools(videoId, profile),
-      stopWhen: stepCountIs(4), // allow the agent to call a tool, then answer
-      maxOutputTokens: 400,
-      temperature: 0.8,
-      providerOptions: selected.providerOptions,
-    });
-
-    const responseMessage = text;
-
-    // If this is the final turn, extract agent notes and update the learner profile
-    if (isFinal && responseMessage) {
-      const noteSeparator = '---AGENT_NOTES---';
-      const noteIdx = responseMessage.indexOf(noteSeparator);
-
-      if (noteIdx !== -1) {
-        const visibleMessage = responseMessage.slice(0, noteIdx).trim();
-        const agentNotes = responseMessage.slice(noteIdx + noteSeparator.length).trim();
-
-        // Update profile with conversation data and agent's notes
-        learnerProfile.updateProfileAfterConversation(profile, videoTitle, videoChannel, history || []);
-        if (agentNotes) {
-          // Append to existing notes rather than replacing
-          const existingNotes = profile.agentNotes || '';
-          const combinedNotes = existingNotes
-            ? `${existingNotes}\n[${new Date().toLocaleDateString()}] ${agentNotes}`
-            : agentNotes;
-          learnerProfile.updateAgentNotes(profile, combinedNotes);
-        }
-
-        res.json({ message: visibleMessage });
-        return;
+  // Try each model in order; fall back to the next one if a provider errors out
+  // (e.g. Gemini 503s under load) so the reflection gate keeps working.
+  let responseMessage = null;
+  for (const candidate of chain) {
+    try {
+      const { text } = await generateText({
+        model: candidate.model,
+        system: systemPrompt,
+        messages,
+        tools: buildTools(videoId, profile),
+        stopWhen: stepCountIs(4), // allow the agent to call a tool, then answer
+        maxOutputTokens: 400,
+        temperature: 0.8,
+        providerOptions: candidate.providerOptions,
+      });
+      responseMessage = text;
+      if (candidate.label !== chain[0].label) {
+        console.log(`Chat: primary model failed; served via fallback (${candidate.label}).`);
       }
-
-      // No separator found — still update profile
-      learnerProfile.updateProfileAfterConversation(profile, videoTitle, videoChannel, history || []);
+      break;
+    } catch (err) {
+      console.error(`Chat error (${candidate.label}):`, err.message || err);
+      // fall through and try the next candidate
     }
+  }
 
-    res.json({ message: responseMessage });
-  } catch (err) {
-    console.error('Chat error:', err);
-    res.json({
+  // Every model failed — fail safe with a generic question so the gate still works.
+  if (responseMessage === null) {
+    return res.json({
       message: isFinal
-        ? "Great job thinking about what you watched!"
-        : "What was the most interesting thing in that video?"
+        ? 'Great job thinking about what you watched!'
+        : 'What was the most interesting thing in that video?',
     });
   }
+
+  // Final turn: split off the private agent notes (the kid must never see them)
+  // and persist them to the learner profile. Compute the visible message first so
+  // a profile-write error can never crash the request or leak the notes.
+  if (isFinal && responseMessage) {
+    const noteSeparator = '---AGENT_NOTES---';
+    const noteIdx = responseMessage.indexOf(noteSeparator);
+    const visibleMessage = noteIdx !== -1 ? responseMessage.slice(0, noteIdx).trim() : responseMessage;
+    const agentNotes = noteIdx !== -1 ? responseMessage.slice(noteIdx + noteSeparator.length).trim() : '';
+
+    try {
+      learnerProfile.updateProfileAfterConversation(profile, videoTitle, videoChannel, history || []);
+      if (agentNotes) {
+        // Append to existing notes rather than replacing
+        const existingNotes = profile.agentNotes || '';
+        const combinedNotes = existingNotes
+          ? `${existingNotes}\n[${new Date().toLocaleDateString()}] ${agentNotes}`
+          : agentNotes;
+        learnerProfile.updateAgentNotes(profile, combinedNotes);
+      }
+    } catch (err) {
+      console.error('Profile update error:', err.message || err);
+    }
+
+    return res.json({ message: visibleMessage });
+  }
+
+  res.json({ message: responseMessage });
 });
 
 // --- Learner Profile API (for parent settings panel) ---
@@ -641,8 +669,14 @@ app.listen(PORT, () => {
     if (anthropicProvider) console.log('  Fallback model available: Claude Haiku');
   } else if (anthropicProvider) {
     console.log('  AI model: Claude Haiku via Vercel AI SDK');
+  } else if (openrouterProvider) {
+    console.log(`  AI model: ${OPENROUTER_FALLBACK_MODEL} (OpenRouter)`);
   } else {
-    console.log('  WARNING: No AI model configured! Set GEMINI_API_KEY or ANTHROPIC_API_KEY');
+    console.log('  WARNING: No AI model configured! Set GEMINI_API_KEY, GEMMA_API_KEY, or ANTHROPIC_API_KEY');
+  }
+
+  if (openrouterProvider && (googleProvider || anthropicProvider)) {
+    console.log(`  Fallback model available: ${OPENROUTER_FALLBACK_MODEL} (OpenRouter)`);
   }
 
   if (!GOOGLE_CLIENT_ID) {
