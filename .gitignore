@@ -2,3 +2,6 @@ node_modules/
 .env
 *.db
 data/
+
+# Personal data exports (Google Takeout) — never commit
+takeout*
