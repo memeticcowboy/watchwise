@@ -227,7 +227,7 @@
     els.subsSection.classList.remove('hidden');
     els.subsRow.innerHTML = subs.map((sub) => `
       <div class="sub-chip" data-channel-id="${escapeAttr(sub.channelId)}" data-channel-name="${escapeAttr(sub.title)}">
-        <img class="sub-avatar" src="${escapeAttr(sub.thumbnail)}" alt="" loading="lazy">
+        <img class="sub-avatar" src="${escapeAttr(sub.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">
         <span>${escapeHtml(sub.title)}</span>
       </div>
     `).join('');
