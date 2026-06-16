@@ -180,13 +180,14 @@
       els.accountIconDefault.classList.remove('hidden');
       els.accountAvatar.classList.add('hidden');
 
-      // Show sign-in prompt
-      els.welcomeSignin.classList.remove('hidden');
+      // Sign-in is unused (supervised accounts can't OAuth; channels come from
+      // the imported list). Keep the sign-in prompt hidden.
+      els.welcomeSignin.classList.add('hidden');
       els.homeFeed.classList.add('hidden');
 
       // Update settings panel
-      els.settingsAccountStatus.textContent = 'Not signed in';
-      els.settingsSignin.classList.remove('hidden');
+      els.settingsAccountStatus.textContent = "Sign-in isn't needed — channels come from your imported list.";
+      els.settingsSignin.classList.add('hidden');
       els.settingsSignout.classList.add('hidden');
     }
   }
