@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const { generateText, tool, stepCountIs } = require('ai');
 const { createGoogleGenerativeAI } = require('@ai-sdk/google');
@@ -646,6 +647,21 @@ app.get('/api/learner-profile', async (req, res) => {
   const profileId = req.query.profileId || DEFAULT_PROFILE_ID;
   const profile = learnerProfile.loadProfile(profileId);
   res.json(profile);
+});
+
+// --- Imported subscriptions (from Google Takeout, served from data/, no OAuth) ---
+// Lets the kid's curated channels work even on a supervised account that the
+// YouTube API refuses. Populated by scripts/import-takeout.js.
+app.get('/api/imported-subscriptions', (req, res) => {
+  const file = path.join(__dirname, '..', 'data', 'import', 'subscriptions.json');
+  try {
+    if (!fs.existsSync(file)) return res.json({ items: [] });
+    const items = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    res.json({ items: Array.isArray(items) ? items : [] });
+  } catch (err) {
+    console.error('Imported subscriptions error:', err.message || err);
+    res.json({ items: [] });
+  }
 });
 
 // --- PIN Verification ---

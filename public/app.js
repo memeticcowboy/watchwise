@@ -25,6 +25,7 @@
     isChatting: false,
     loggedIn: false,
     user: null,
+    importedChannels: [],
   };
 
   // --- DOM refs ---
@@ -148,6 +149,8 @@
 
       if (state.loggedIn) {
         loadHomeFeed();
+      } else {
+        loadImportedChannels();
       }
     } catch {
       // Auth check failed silently — search-only mode
@@ -220,6 +223,23 @@
     // Render recommendations
     if (recsRes.status === 'fulfilled' && recsRes.value.items && recsRes.value.items.length > 0) {
       renderRecommendations(recsRes.value.items);
+    }
+  }
+
+  // Load the kid's curated channels imported from Google Takeout. Works with no
+  // sign-in, so a supervised account the YouTube API refuses still gets a home row.
+  async function loadImportedChannels() {
+    try {
+      const res = await fetch('/api/imported-subscriptions');
+      const data = await res.json();
+      if (data.items && data.items.length > 0) {
+        state.importedChannels = data.items;
+        els.welcomeMessage.classList.add('hidden');
+        els.homeFeed.classList.remove('hidden');
+        renderSubscriptions(data.items);
+      }
+    } catch {
+      // No imported channels — leave the default welcome UI.
     }
   }
 
@@ -530,8 +550,8 @@
       els.resultsGrid.innerHTML = '';
       state.currentVideo = null;
 
-      // Show home feed or welcome depending on auth
-      if (state.loggedIn) {
+      // Show home feed (channels) or welcome depending on auth / imported channels
+      if (state.loggedIn || state.importedChannels.length > 0) {
         els.homeFeed.classList.remove('hidden');
       } else {
         els.welcomeMessage.classList.remove('hidden');

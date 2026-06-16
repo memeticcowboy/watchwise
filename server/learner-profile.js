@@ -158,36 +158,43 @@ function updateProfileAfterConversation(profile, videoTitle, videoChannel, conve
 
 // Build a context summary for the agent prompt
 function buildLearnerContext(profile) {
-  if (profile.totalConversations === 0) {
+  const hasConversations = profile.totalConversations > 0;
+  const hasInterests = (profile.interests || []).length > 0;
+
+  if (!hasConversations && !hasInterests) {
     return `This is the first time chatting with ${profile.name}. You don't know them yet — be warm and curious about who they are.`;
   }
 
   const lines = [];
-  lines.push(`You've been ${profile.name}'s thinking buddy for ${profile.totalConversations} conversations.`);
+  if (hasConversations) {
+    lines.push(`You've been ${profile.name}'s thinking buddy for ${profile.totalConversations} conversations.`);
+  } else {
+    lines.push(`You haven't talked with ${profile.name} yet, but their YouTube viewing history tells you a lot about what they're into.`);
+  }
 
   // Top interests
-  const topInterests = profile.interests.slice(0, 5);
+  const topInterests = (profile.interests || []).slice(0, 5);
   if (topInterests.length > 0) {
     const interestStr = topInterests.map((i) => i.topic).join(', ');
     lines.push(`Their biggest interests: ${interestStr}.`);
   }
 
-  // Recent viewing
-  const recent = profile.conversationInsights.slice(-5);
+  // Recent viewing (from past WatchWise conversations)
+  const recent = (profile.conversationInsights || []).slice(-5);
   if (recent.length > 0) {
     const recentTitles = recent.map((r) => `"${r.videoTitle}"`).join(', ');
     lines.push(`Recently watched: ${recentTitles}.`);
   }
 
-  // Engagement level
-  if (profile.avgResponseLength < 20) {
+  // Engagement level (only meaningful once they've actually talked with you)
+  if (hasConversations && profile.avgResponseLength < 20) {
     lines.push('They tend to give short answers — use specific, concrete questions to draw them out.');
-  } else if (profile.avgResponseLength > 80) {
+  } else if (hasConversations && profile.avgResponseLength > 80) {
     lines.push('They usually give detailed, thoughtful answers — you can ask deeper follow-ups.');
   }
 
   // Cross-video connections
-  const topTopics = Object.entries(profile.topicBreakdown)
+  const topTopics = Object.entries(profile.topicBreakdown || {})
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3);
 
