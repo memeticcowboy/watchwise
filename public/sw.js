@@ -1,4 +1,4 @@
-const CACHE_NAME = 'watchwise-v1';
+const CACHE_NAME = 'watchwise-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -29,8 +29,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip non-GET and API requests
-  if (event.request.method !== 'GET' || url.pathname.startsWith('/api/')) {
+   // Only cache same-origin static assets. Skip API/auth routes, cross-origin,
+  // and non-http schemes (chrome-extension://) — caching those throws or
+  // breaks the OAuth redirect.
+  if (
+    event.request.method !== 'GET' ||
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/auth/')
+  ) {
     return;
   }
 

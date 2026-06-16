@@ -702,7 +702,6 @@
 
   function hidePinModal() {
     els.pinModal.classList.add('hidden');
-    pinCallback = null;
   }
 
   function onPinKey(key) {
@@ -871,9 +870,11 @@
     els.limitOk.addEventListener('click', () => els.limitModal.classList.add('hidden'));
 
     // Auth
-    els.accountBtn.addEventListener('click', () => {
+   els.accountBtn.addEventListener('click', () => {
       if (!state.loggedIn) {
         signIn();
+      } else if (confirm('Sign out of YouTube?')) {
+        signOut();
       }
     });
     els.welcomeSignin.addEventListener('click', signIn);
