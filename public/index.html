@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#6c63ff">
+  <title>WatchWise</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header id="app-header">
+      <div class="header-left">
+        <h1>WatchWise</h1>
+      </div>
+      <div class="header-right">
+        <button id="account-btn" class="icon-btn" title="YouTube Account">
+          <svg id="account-icon-default" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <img id="account-avatar" class="avatar hidden" alt="">
+        </button>
+        <button id="history-btn" class="icon-btn" title="Watch History">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </button>
+        <button id="settings-btn" class="icon-btn" title="Parent Settings">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Search Bar -->
+    <div id="search-section">
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search YouTube..." autocomplete="off">
+        <button id="search-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main id="main-content">
+      <!-- Player Screen (hidden by default) -->
+      <div id="player-screen" class="screen hidden">
+        <div id="player-container">
+          <div id="youtube-player"></div>
+        </div>
+        <div id="video-info">
+          <h2 id="video-title"></h2>
+          <p id="video-channel"></p>
+        </div>
+      </div>
+
+      <!-- Conversation Gate (hidden by default) -->
+      <div id="conversation-gate" class="screen hidden">
+        <div class="gate-header">
+          <div class="gate-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h2>Let's talk about what you watched!</h2>
+          <p id="gate-video-title"></p>
+        </div>
+        <div id="chat-messages"></div>
+        <div id="chat-input-area">
+          <input type="text" id="chat-input" placeholder="Type your answer..." autocomplete="off">
+          <button id="chat-send-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search Results -->
+      <div id="search-results" class="screen">
+        <div id="results-grid"></div>
+
+        <!-- Home Feed (shown when signed in, no search active) -->
+        <div id="home-feed" class="hidden">
+          <!-- Subscriptions row -->
+          <div id="subs-section" class="feed-section hidden">
+            <h3 class="feed-heading">Your Channels</h3>
+            <div id="subs-row" class="subs-row"></div>
+          </div>
+          <!-- Recommended videos -->
+          <div id="recs-section" class="feed-section hidden">
+            <h3 class="feed-heading">Recommended For You</h3>
+            <div id="recs-grid"></div>
+          </div>
+        </div>
+
+        <!-- Welcome (shown when not signed in and no search) -->
+        <div id="welcome-message">
+          <div class="welcome-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+          <h2>What do you want to watch?</h2>
+          <p>Search for a video above to get started!</p>
+          <button id="welcome-signin" class="signin-btn hidden">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Sign in with YouTube for recommendations
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- History Panel (slide-in) -->
+    <div id="history-panel" class="panel hidden">
+      <div class="panel-header">
+        <h2>Watch History</h2>
+        <button id="history-close" class="icon-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="history-list"></div>
+    </div>
+
+    <!-- Settings Panel (slide-in, PIN protected) -->
+    <div id="settings-panel" class="panel hidden">
+      <div class="panel-header">
+        <h2>Parent Settings</h2>
+        <button id="settings-close" class="icon-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="settings-content">
+        <div class="setting-group">
+          <label>Questions per video</label>
+          <select id="setting-questions">
+            <option value="1">1 question</option>
+            <option value="2" selected>2 questions</option>
+            <option value="3">3 questions</option>
+            <option value="4">4 questions</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label>Child's age</label>
+          <select id="setting-age">
+            <option value="5">5-6 years</option>
+            <option value="7">7-8 years</option>
+            <option value="9" selected>9-10 years</option>
+            <option value="11">11-12 years</option>
+            <option value="13">13+ years</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label>Conversation style</label>
+          <select id="setting-style">
+            <option value="curious">Curious & fun</option>
+            <option value="socratic" selected>Socratic</option>
+            <option value="critical">Critical thinking</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label>AI Model</label>
+          <select id="setting-model">
+            <option value="gemini" selected>Gemini Flash (free, kid-safe filters)</option>
+            <option value="claude">Claude Haiku (paid, high quality)</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label>Daily video limit</label>
+          <select id="setting-limit">
+            <option value="3">3 videos</option>
+            <option value="5" selected>5 videos</option>
+            <option value="10">10 videos</option>
+            <option value="0">No limit</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label>YouTube Account</label>
+          <div id="settings-account">
+            <p id="settings-account-status">Not signed in</p>
+            <button id="settings-signin" class="secondary-btn">Sign in with YouTube</button>
+            <button id="settings-signout" class="danger-btn hidden">Sign Out</button>
+          </div>
+        </div>
+        <div class="setting-group">
+          <h3>Today's Stats</h3>
+          <div id="daily-stats">
+            <p>Videos watched: <span id="stat-videos">0</span></p>
+            <p>Conversations completed: <span id="stat-convos">0</span></p>
+          </div>
+        </div>
+        <div class="setting-group">
+          <h3>Learner Profile</h3>
+          <div id="learner-profile-section">
+            <div id="profile-loading" class="hidden">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+            <div id="profile-data" class="hidden">
+              <p>Total conversations: <span id="profile-total-convos">0</span></p>
+              <p>Avg response length: <span id="profile-avg-response">0</span> chars</p>
+              <div id="profile-interests"></div>
+              <div id="profile-agent-notes"></div>
+              <div id="profile-recent"></div>
+            </div>
+            <p id="profile-empty">No learner data yet. The agent will start learning after the first conversation.</p>
+          </div>
+        </div>
+        <button id="save-settings" class="primary-btn">Save Settings</button>
+      </div>
+    </div>
+
+    <!-- PIN Modal -->
+    <div id="pin-modal" class="modal hidden">
+      <div class="modal-content">
+        <h2>Enter Parent PIN</h2>
+        <div id="pin-dots">
+          <span class="pin-dot"></span>
+          <span class="pin-dot"></span>
+          <span class="pin-dot"></span>
+          <span class="pin-dot"></span>
+        </div>
+        <div id="pin-pad">
+          <button class="pin-key" data-key="1">1</button>
+          <button class="pin-key" data-key="2">2</button>
+          <button class="pin-key" data-key="3">3</button>
+          <button class="pin-key" data-key="4">4</button>
+          <button class="pin-key" data-key="5">5</button>
+          <button class="pin-key" data-key="6">6</button>
+          <button class="pin-key" data-key="7">7</button>
+          <button class="pin-key" data-key="8">8</button>
+          <button class="pin-key" data-key="9">9</button>
+          <button class="pin-key pin-key-empty"></button>
+          <button class="pin-key" data-key="0">0</button>
+          <button class="pin-key pin-key-del" data-key="del">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+          </button>
+        </div>
+        <p id="pin-error" class="hidden">Wrong PIN. Try again.</p>
+        <button id="pin-cancel" class="text-btn">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Video Limit Reached Modal -->
+    <div id="limit-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="limit-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h2>That's enough for today!</h2>
+        <p>You've reached your daily video limit. Come back tomorrow, or ask a parent to adjust your settings.</p>
+        <button id="limit-ok" class="primary-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

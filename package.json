@@ -1,0 +1,20 @@
+{
+  "name": "youtube-engagement-app",
+  "version": "1.0.0",
+  "description": "A parental YouTube engagement app that encourages kids to think about what they watch",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "ai": "^6.0.0",
+    "@ai-sdk/google": "^3.0.0",
+    "@ai-sdk/anthropic": "^3.0.0",
+    "zod": "^3.25.76",
+    "express": "^4.21.0",
+    "dotenv": "^16.4.7",
+    "cors": "^2.8.5",
+    "express-session": "^1.18.1"
+  }
+}
